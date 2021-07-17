@@ -1,0 +1,58 @@
+version: "3.9"
+services:
+  expressapp:
+    container_name: expressapp
+    build: ./backend
+    expose:
+      - 8000
+    volumes:
+      - ./backend:/usr/src/app
+  reactapp:
+    container_name: reactapp
+    build: ./frontend
+    expose:
+      - 5000
+    volumes:
+      - ./frontend:/usr/src/app
+  nginx:
+    build: ./nginx
+    expose:
+      - 80
+    links:
+      - expressapp
+      - reactapp
+      - nginx-proxy
+      - letsencrypt
+    environment: 
+      - VIRTUAL_HOST=rugamas.xyz,www.rugamas.xyz
+      - LETSENCRYPT_HOST=rugamas.xyz,www.rugamas.xyz
+    restart: always
+
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+        - certs:/etc/nginx/certs:ro
+        - vhostd:/etc/nginx/vhost.d
+        - html:/usr/share/nginx/html
+    labels:
+        - com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy
+
+  letsencrypt:
+      image: jrcs/letsencrypt-nginx-proxy-companion
+      restart: always
+      environment:
+          - NGINX_PROXY_CONTAINER=nginx-proxy
+      volumes:
+        - certs:/etc/nginx/certs:rw
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+        - vhostd:/etc/nginx/vhost.d
+        - html:/usr/share/nginx/html
+volumes:
+  certs:
+  html:
+  vhostd:
